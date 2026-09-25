@@ -1,9 +1,9 @@
 from user_service.db.session import (
     SessionLocal,
+    close_db_connections,
     engine,
     get_db,
     get_session,
-    init_db,
 )
 
 __all__ = [
@@ -11,5 +11,5 @@ __all__ = [
     "SessionLocal",
     "get_session",
     "get_db",
-    "init_db",
+    "close_db_connections",
 ]

@@ -1,3 +1,4 @@
+from user_service.db.base import BaseAuditModel, SQLModel
 from user_service.db.session import (
     SessionLocal,
     close_db_connections,
@@ -7,9 +8,11 @@ from user_service.db.session import (
 )
 
 __all__ = [
-    "engine",
+    "BaseAuditModel",
+    "SQLModel",
     "SessionLocal",
-    "get_session",
-    "get_db",
     "close_db_connections",
+    "engine",
+    "get_db",
+    "get_session",
 ]

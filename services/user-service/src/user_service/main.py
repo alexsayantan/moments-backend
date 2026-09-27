@@ -1,9 +1,11 @@
-from user_service.db import close_db_connections
-from user_service.core.config import settings
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
+from user_service.api.v1.router import api_router
+from user_service.core.config import settings
+from user_service.db import close_db_connections
 
 
 @asynccontextmanager
@@ -20,3 +22,6 @@ app = FastAPI(
     version=settings.app_version,
     lifespan=lifespan,
 )
+
+# Mount API v1 router
+app.include_router(api_router, prefix="/api/v1")

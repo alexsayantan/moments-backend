@@ -8,11 +8,17 @@ authors = [
 ]
 requires-python = ">=3.14"
 dependencies = [
+    "common-auth",
     "fastapi[standard]>=0.141.1",
     "psycopg[binary]>=3.3.6",
+    "pwdlib[argon2]>=0.3.1",
     "sqlalchemy>=2.0.54",
     "sqlmodel>=0.0.47",
 ]
+
+[tool.uv.sources]
+common-auth = { workspace = true }
+
 
 [project.scripts]
 user-service = "user_service:main"

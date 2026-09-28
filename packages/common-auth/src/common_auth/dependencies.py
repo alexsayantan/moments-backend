@@ -1,11 +1,10 @@
-from collections.abc import Callable
-
-from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
-
+from fastapi import Depends, HTTPException, status
 from common_auth.jwt import verify_access_token
 from common_auth.schemas import UserClaims
+from collections.abc import Callable
+
 
 # HTTPBearer extracts Authorization: Bearer <token>
 bearer_scheme = HTTPBearer(auto_error=True)

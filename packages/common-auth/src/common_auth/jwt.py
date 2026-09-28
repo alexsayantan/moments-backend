@@ -1,12 +1,10 @@
+from common_auth.config import AuthSettings, auth_settings
 from datetime import datetime, timedelta, timezone
+from jwt.exceptions import InvalidTokenError
+from common_auth.schemas import UserClaims
 from typing import Any
 import uuid
-
 import jwt
-from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
-
-from common_auth.config import AuthSettings, auth_settings
-from common_auth.schemas import UserClaims
 
 
 def _get_signing_key(settings: AuthSettings) -> str:

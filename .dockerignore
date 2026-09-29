@@ -1,0 +1,42 @@
+# Git
+.git/
+.gitignore
+
+# Python caches & build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Environment variables & secrets (never bake secrets into container images)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# IDE & OS files
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Documentation & logs
+*.log
+README.md
+docs/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/

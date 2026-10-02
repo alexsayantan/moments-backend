@@ -19,6 +19,20 @@ services:
     networks:
       - moments-network
 
+  redis:
+    image: redis:7-alpine
+    container_name: moments-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - moments-network
+
   user-service:
     build:
       context: .
@@ -32,6 +46,7 @@ services:
       APP_VERSION: "v1"
       APP_DESCRIPTION: "User Management Service"
       DATABASE_URL: "postgresql+psycopg://postgres:postgrespassword@postgres:5432/user_db"
+      REDIS_URL: "redis://redis:6379/0"
       ECHO_SQL: "false"
       JWT_SECRET_KEY: "moments-local-dev-jwt-secret-key-at-least-32-chars-long"
       DB_POOL_SIZE: 5
@@ -40,6 +55,8 @@ services:
       DB_POOL_RECYCLE: 300
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - moments-network

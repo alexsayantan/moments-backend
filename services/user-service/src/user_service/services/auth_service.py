@@ -20,6 +20,7 @@ from user_service.schemas.auth import (
     UserRegisterRequest,
     UserResponse,
 )
+from user_service.services.otp_service import OtpPurpose, otp_service
 
 
 class AuthService:
@@ -84,6 +85,14 @@ class AuthService:
         session.add(new_user)
         session.commit()
         session.refresh(new_user)
+
+        # Dispatch initial email verification OTP
+        try:
+            otp_service.create_and_send_otp(new_user.email, OtpPurpose.EMAIL_VERIFICATION)
+        except Exception:
+            # Registration succeeds; user can re-request OTP via /resend-otp
+            pass
+
         return new_user
 
     @classmethod
@@ -169,6 +178,119 @@ class AuthService:
             )
 
         return cls.create_tokens(user)
+
+    @classmethod
+    def verify_email(cls, session: Session, email: str, otp: str) -> User:
+        """Verify user account email with OTP stored in Redis."""
+        email_clean = email.lower().strip()
+
+        # Fetch user
+        statement = select(User).where(func.lower(User.email) == email_clean)
+        user = session.exec(statement).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User account not found with this email",
+            )
+
+        if user.is_verified:
+            return user
+
+        # Verify OTP via OtpService
+        otp_service.verify_otp(email_clean, OtpPurpose.EMAIL_VERIFICATION, otp)
+
+        # Mark user as verified
+        user.is_verified = True
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        return user
+
+    @classmethod
+    def send_verification_otp(cls, session: Session, email: str) -> None:
+        """Send an email verification OTP for an unverified account."""
+        email_clean = email.lower().strip()
+        statement = select(User).where(func.lower(User.email) == email_clean)
+        user = session.exec(statement).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User account not found with this email",
+            )
+
+        if user.is_verified:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User account is already verified",
+            )
+
+        otp_service.create_and_send_otp(email_clean, OtpPurpose.EMAIL_VERIFICATION)
+
+    @classmethod
+    def request_password_reset(cls, session: Session, email: str) -> None:
+        """Initiate password reset flow by sending OTP to user email."""
+        email_clean = email.lower().strip()
+        statement = select(User).where(func.lower(User.email) == email_clean)
+        user = session.exec(statement).first()
+
+        # Prevent user enumeration: only generate OTP if user exists and is active,
+        # but do not leak non-existence to caller
+        if user and user.is_active:
+            otp_service.create_and_send_otp(email_clean, OtpPurpose.PASSWORD_RESET)
+
+    @classmethod
+    def reset_password(
+        cls,
+        session: Session,
+        email: str,
+        otp: str,
+        new_password: str,
+    ) -> None:
+        """Reset user password after validating OTP."""
+        email_clean = email.lower().strip()
+
+        # Fetch user
+        statement = select(User).where(func.lower(User.email) == email_clean)
+        user = session.exec(statement).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User account not found with this email",
+            )
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is deactivated",
+            )
+
+        # Verify password reset OTP
+        otp_service.verify_otp(email_clean, OtpPurpose.PASSWORD_RESET, otp)
+
+        # Update password
+        user.hashed_password = hash_password(new_password)
+        session.add(user)
+        session.commit()
+
+    @classmethod
+    def resend_otp(cls, session: Session, email: str, purpose: str) -> None:
+        """Resend OTP for email verification or password reset."""
+        email_clean = email.lower().strip()
+        statement = select(User).where(func.lower(User.email) == email_clean)
+        user = session.exec(statement).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User account not found with this email",
+            )
+
+        if purpose == OtpPurpose.EMAIL_VERIFICATION.value and user.is_verified:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User account is already verified",
+            )
+
+        otp_service.create_and_send_otp(email_clean, purpose)
 
 
 auth_service = AuthService()

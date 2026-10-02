@@ -6,14 +6,16 @@ from fastapi import FastAPI
 from user_service.api.v1.router import api_router
 from user_service.core.config import settings
 from user_service.db import close_db_connections
+from user_service.services.redis_service import close_redis_connections
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Pod startup
     yield
-    # Pod shutdown (SIGTERM): dispose connection pool cleanly
+    # Pod shutdown (SIGTERM): dispose connection pools cleanly
     close_db_connections()
+    close_redis_connections()
 
 
 app = FastAPI(

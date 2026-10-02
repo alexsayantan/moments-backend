@@ -1,16 +1,20 @@
 from fastapi import APIRouter, Depends, status
 from sqlmodel import Session
 
-from common_auth import UserClaims, get_current_user
 from user_service.db import get_session
-from user_service.models import User
 from user_service.schemas.auth import (
     AuthResponse,
+    ForgotPasswordRequest,
+    MessageResponse,
     RefreshTokenRequest,
+    ResendOtpRequest,
+    ResetPasswordRequest,
+    SendOtpRequest,
     TokenResponse,
     UserLoginRequest,
     UserRegisterRequest,
     UserResponse,
+    VerifyEmailRequest,
 )
 from user_service.services.auth_service import auth_service
 
@@ -22,7 +26,7 @@ router = APIRouter()
     response_model=AuthResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Register a new user",
-    description="Creates a new user account with hashed password and returns access/refresh tokens.",
+    description="Creates a new user account with hashed password, dispatches verification OTP to email, and returns initial tokens.",
 )
 def register(
     request: UserRegisterRequest,
@@ -69,16 +73,80 @@ def refresh_token(
     return auth_service.refresh(session, request)
 
 
-@router.get(
-    "/me",
-    response_model=UserResponse,
+@router.post(
+    "/verify-email",
+    response_model=MessageResponse,
     status_code=status.HTTP_200_OK,
-    summary="Get current authenticated user profile",
-    description="Returns the profile of the user identified by the Bearer token.",
+    summary="Verify account email with OTP",
+    description="Validates the email verification OTP stored in Redis and marks account as verified.",
 )
-def get_me(
-    claims: UserClaims = Depends(get_current_user),
+def verify_email(
+    request: VerifyEmailRequest,
     session: Session = Depends(get_session),
-) -> UserResponse:
-    user = session.get(User, claims.user_id)
-    return UserResponse.model_validate(user)
+) -> MessageResponse:
+    auth_service.verify_email(session, request.email, request.otp)
+    return MessageResponse(message="Email verified successfully. Your account is now active.")
+
+
+@router.post(
+    "/send-verification-otp",
+    response_model=MessageResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Send email verification OTP",
+    description="Dispatches a 6-digit verification code to the user's email address with a 5-minute TTL.",
+)
+def send_verification_otp(
+    request: SendOtpRequest,
+    session: Session = Depends(get_session),
+) -> MessageResponse:
+    auth_service.send_verification_otp(session, request.email)
+    return MessageResponse(message="Verification OTP sent to your email address.")
+
+
+@router.post(
+    "/forgot-password",
+    response_model=MessageResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Request password reset OTP",
+    description="Generates a password reset code and delivers it to the user's registered email with TTL.",
+)
+def forgot_password(
+    request: ForgotPasswordRequest,
+    session: Session = Depends(get_session),
+) -> MessageResponse:
+    auth_service.request_password_reset(session, request.email)
+    return MessageResponse(
+        message="If an account with this email exists, a password reset code has been sent."
+    )
+
+
+@router.post(
+    "/reset-password",
+    response_model=MessageResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Reset password with OTP",
+    description="Validates the password reset OTP stored in Redis and updates the user's password.",
+)
+def reset_password(
+    request: ResetPasswordRequest,
+    session: Session = Depends(get_session),
+) -> MessageResponse:
+    auth_service.reset_password(session, request.email, request.otp, request.new_password)
+    return MessageResponse(
+        message="Password reset successfully. You can now log in with your new password."
+    )
+
+
+@router.post(
+    "/resend-otp",
+    response_model=MessageResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Resend verification or reset OTP",
+    description="Regenerates and resends an OTP for email_verification or password_reset subject to cooldown.",
+)
+def resend_otp(
+    request: ResendOtpRequest,
+    session: Session = Depends(get_session),
+) -> MessageResponse:
+    auth_service.resend_otp(session, request.email, request.purpose)
+    return MessageResponse(message="A new OTP has been dispatched to your email address.")

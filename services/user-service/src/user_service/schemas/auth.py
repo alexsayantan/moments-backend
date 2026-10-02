@@ -50,3 +50,50 @@ class AuthResponse(BaseModel):
 
     tokens: TokenResponse
     user: UserResponse
+
+
+class MessageResponse(BaseModel):
+    """Standard message response for actions that do not return resource data."""
+
+    message: str = Field(description="Status message")
+
+
+class VerifyEmailRequest(BaseModel):
+    """Payload for verifying user account through email OTP."""
+
+    email: EmailStr = Field(description="Registered account email address")
+    otp: str = Field(min_length=4, max_length=10, description="6-digit verification code sent to email")
+
+
+class SendOtpRequest(BaseModel):
+    """Payload to request an OTP for email verification."""
+
+    email: EmailStr = Field(description="Registered account email address")
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Payload to initiate password reset via email OTP."""
+
+    email: EmailStr = Field(description="Registered account email address")
+
+
+class ResetPasswordRequest(BaseModel):
+    """Payload to reset account password using email OTP."""
+
+    email: EmailStr = Field(description="Registered account email address")
+    otp: str = Field(min_length=4, max_length=10, description="6-digit password reset code")
+    new_password: str = Field(
+        min_length=8,
+        max_length=128,
+        description="New plaintext password (minimum 8 characters)",
+    )
+
+
+class ResendOtpRequest(BaseModel):
+    """Payload to resend an OTP for a specific purpose."""
+
+    email: EmailStr = Field(description="Registered account email address")
+    purpose: str = Field(
+        default="email_verification",
+        description="Purpose of OTP ('email_verification' or 'password_reset')",
+    )
